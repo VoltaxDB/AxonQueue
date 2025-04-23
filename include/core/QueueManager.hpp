@@ -1,15 +1,13 @@
 #pragma once
 
 #include <atomic>
-#include <functional>
+#include <chrono>
 #include <memory>
-#include <queue>
 #include <shared_mutex>
-#include <stack>
 #include <string>
 #include <unordered_map>
-
-#include "Task.hpp"
+#include "../core/Task.hpp"
+#include "../utils/DataStructures.hpp"
 
 namespace taskqueuex
 {
@@ -38,6 +36,12 @@ namespace taskqueuex
         std::shared_ptr<Task> findTask(Task::TaskId id) const;
         bool                  cancelTask(Task::TaskId id);
 
+        void                      addDependency(Task::TaskId dependent, Task::TaskId dependency);
+        void                      removeDependency(Task::TaskId dependent, Task::TaskId dependency);
+        bool                      areDependenciesMet(Task::TaskId id) const;
+        std::string               generateDependencyGraph(Task::TaskId rootId) const;
+        std::vector<Task::TaskId> getCriticalPath(Task::TaskId rootId) const;
+
         void      setMode(QueueMode mode);
         QueueMode getMode() const;
 
@@ -45,38 +49,47 @@ namespace taskqueuex
         std::unordered_map<std::string, double> getMetrics() const;
 
        private:
-        std::atomic<size_t> total_size_{0};
-
         mutable std::shared_mutex queue_mutex_;
         mutable std::shared_mutex task_mutex_;
         mutable std::shared_mutex config_mutex_;
 
-        std::unordered_map<std::string, std::queue<std::shared_ptr<Task>>> fifo_queues_;
-        std::unordered_map<std::string, std::stack<std::shared_ptr<Task>>> lifo_queues_;
-        std::unordered_map<std::string,
-                           std::priority_queue<std::shared_ptr<Task>,
-                                               std::vector<std::shared_ptr<Task>>,
-                                               std::function<bool(const std::shared_ptr<Task> &,
-                                                                  const std::shared_ptr<Task> &)>>>
-            priority_queues_;
+        QueueMode mode_{QueueMode::FIFO};
 
         std::unordered_map<Task::TaskId, std::shared_ptr<Task>> task_map_;
 
-        QueueMode mode_{QueueMode::FIFO};
+        std::atomic<size_t> total_tasks_{0};
 
-        mutable std::vector<std::string> group_names_;
-        mutable size_t                   current_group_index_{0};
+        std::vector<std::string> group_names_;
+        std::atomic<size_t>      current_group_index_{0};
 
-        std::atomic<uint64_t>                          enqueue_count_{0};
-        std::atomic<uint64_t>                          dequeue_count_{0};
-        std::atomic<uint64_t>                          peek_count_{0};
-        std::atomic<uint64_t>                          cancel_count_{0};
-        std::chrono::high_resolution_clock::time_point last_operation_time_;
+        struct TaskNode : public utils::IntrusiveListNode<TaskNode>
+        {
+            std::shared_ptr<Task> task;
+            explicit TaskNode(std::shared_ptr<Task> t) : task(t) {}
+        };
 
-        std::string getNextRoundRobinGroup() const;
-        bool        taskExists(Task::TaskId id) const;
-        void        updateTaskMap(std::shared_ptr<Task> task);
-        void        removeTaskFromMap(Task::TaskId id);
+        std::unordered_map<std::string, utils::LockFreeQueue<TaskNode>> fifo_queues_;
+
+        std::unordered_map<std::string, utils::LockFreeStack<TaskNode>> lifo_queues_;
+
+        std::unordered_map<std::string, utils::LockFreePriorityQueue<TaskNode>> priority_queues_;
+
+        utils::TaskGraph dependency_graph_;
+
+        std::atomic<uint64_t> enqueue_count_{0};
+        std::atomic<uint64_t> dequeue_count_{0};
+        std::atomic<uint64_t> peek_count_{0};
+        std::atomic<uint64_t> cancel_count_{0};
+        std::atomic<uint64_t> total_wait_time_ms_{0};
+        std::atomic<uint64_t> total_execution_time_ms_{0};
+
+        std::string           getNextRoundRobinGroup() const;
+        void                  updateTaskInMap(std::shared_ptr<Task> task);
+        void                  removeTaskFromMap(Task::TaskId id);
+        std::shared_ptr<Task> getTaskFromFIFO(const std::string &group);
+        std::shared_ptr<Task> getTaskFromLIFO(const std::string &group);
+        std::shared_ptr<Task> getTaskFromPriority(const std::string &group);
+        std::shared_ptr<Task> getTaskRoundRobin();
     };
 
 }  // namespace taskqueuex
