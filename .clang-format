@@ -1,0 +1,42 @@
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth: 6
+UseTab: Never
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+BreakBeforeBraces: Allman
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: true
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpaceBeforeAssignmentOperators: true
+PointerAlignment: Right
+DerivePointerAlignment: false
+SortIncludes: true
+IncludeBlocks: Preserve
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+    SortPriority: 0
+  - Regex: '^".*\.h"'
+    Priority: 2
+    SortPriority: 1
+NamespaceIndentation: All
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+BinPackParameters: false
+BinPackArguments: false
+AlignAfterOpenBracket: Align
+AlignOperands: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+ReflowComments: true
+PenaltyBreakAssignment: 50
+PenaltyBreakComment: 300
+PenaltyBreakFirstLessLess: 120
+PenaltyBreakString: 100
+PenaltyExcessCharacter: 100
+MacroBlockBegin: "^BEGIN_.*"
+MacroBlockEnd: "^END_.*"
